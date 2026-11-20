@@ -1,0 +1,36 @@
+name: Build and Push Container Images
+on:
+  push:
+    branches: [ main ]
+    
+jobs: 
+  build-and-push:
+    permissions:
+      id-token: write # Required write permission to Fetch an OIDC token
+      contents: read # Read permission to access the repository contents
+
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Azure login
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.9a2b9dd1-bb6c-4f89-9e3e-50fe2f5b5df7 }}
+        tenant-id: ${{ secrets.84f1e4ea-8554-43e1-8709-f0b8589ea118 }}
+        subscription-id: ${{ secrets.9734ed68-621d-47ed-babd-269110dbacb1 }}
+  
+    - name: Azure CLI script
+      uses: azure/cli@v2
+      with:
+        azcliversion: latest
+        inlineScript: |
+          # Set required variables
+          RG=$(az group list --query [].name --output tsv)
+          ACR=$(az acr list --resource-group $RG --query [].name --output tsv)
+          cd frontend
+          az acr build --registry "$ACR" --image "frontend:${GITHUB_RUN_NUMBER}" .
+          cd ../services/cart-service
+          az acr build --registry "$ACR" --image "cart-service:${GITHUB_RUN_NUMBER}" .
+          cd ../product-service
+          az acr build --registry "$ACR" --image "product-service:${GITHUB_RUN_NUMBER}" .
